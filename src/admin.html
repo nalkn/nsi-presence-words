@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRÉSENCE - Espace Admin</title>
+    <link rel="stylesheet" href="admin-style.css">
+</head>
+<body>
+    <div class="admin-wrapper">
+        <header class="admin-header">
+            <div class="status-badge">LIVE</div>
+            <h1>PANNEAU DE CONTRÔLE</h1>
+            <p>Vérification des mots en temps réel</p>
+        </header>
+
+        <main class="admin-container">
+            <div class="section-title">
+                <h2>Mots en attente</h2>
+                <span id="msg-count">0</span>
+            </div>
+            
+            <div id="list-container">
+                <p class="waiting">Initialisation des mots...</p>
+            </div>
+        </main>
+    </div>
+
+    <script src="admin-script.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# env
+.env
+
+# qr codes
+*.png

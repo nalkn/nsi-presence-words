@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PRÉSENCE - Lycée Camille Claudel | Le Forum Vauréal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="background-art">
+        <div class="blob yellow"></div>
+        <div class="blob red"></div>
+        <div class="blob blue"></div>
+    </div>
+
+    <div class="main-wrapper">
+        <header>
+            <div class="institution">LYCÉE CAMILLE CLAUDEL</div>
+            <h1>PRÉSENCE</h1>
+        </header>
+
+        <main class="card">
+            <form id="presence-form">
+                <label for="message">Partagez un mot en rapport avec la présence :</label>
+                <div class="input-area">
+                <textarea 
+                    id="message" 
+                    name="message" 
+                    placeholder="Tapez votre mot ici..." 
+                    required 
+                    maxlength="25"></textarea>
+                <div id="char-counter">25 caractères restants</div>
+                </div>
+                <button type="submit" class="send-btn">Envoyer</button>
+            </form>
+
+            <div id="success-screen" class="hidden">
+                <div class="check-icon">✓</div>
+                <h2>C'est envoyé !</h2>
+                <p>Merci pour votre participation.</p>
+                <div class="timer-wrapper">
+                    <div class="timer-bar"></div>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Lycée Camille Claudel  |  Le Forum</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

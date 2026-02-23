@@ -1,0 +1,71 @@
+:root {
+    --claudel-blue: #002d5a;
+    --claudel-red: #e63946;
+    --claudel-yellow: #ffb703;
+    --white: #ffffff;
+    --bg-light: #f1f4f9;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    font-family: 'Segoe UI', sans-serif;
+    background-color: var(--bg-light);
+    color: var(--claudel-blue);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+/* BACKGROUND */
+.background-art {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: -1; filter: blur(50px); opacity: 0.6;
+}
+.blob { position: absolute; border-radius: 50%; }
+.yellow { width: 300px; height: 300px; background: var(--claudel-yellow); top: -5%; left: -10%; }
+.red { width: 400px; height: 400px; background: var(--claudel-red); bottom: -10%; right: -10%; }
+.blue { width: 250px; height: 250px; background: #457b9d; top: 20%; right: 10%; }
+
+/* CARD & FORM */
+.main-wrapper { width: 90%; max-width: 420px; text-align: center; }
+header h1 { font-size: 3rem; font-weight: 900; margin-bottom: 20px; }
+.institution { background: var(--claudel-blue); color: white; padding: 5px 15px; border-radius: 50px; font-size: 0.7rem; margin-bottom: 10px; }
+
+.card {
+    background: var(--white);
+    padding: 30px;
+    border-radius: 25px;
+    box-shadow: 0 15px 35px rgba(0, 45, 90, 0.2);
+    border: 3px solid var(--claudel-blue);
+}
+
+textarea {
+    width: 100%; height: 120px; background: #f8f9fa;
+    border: 2px solid #dee2e6; border-radius: 15px;
+    padding: 15px; font-size: 1.4rem; font-weight: 600;
+    resize: none; outline: none; transition: 0.2s;
+}
+textarea:focus { border-color: var(--claudel-red); background: #fff; }
+
+#char-counter { text-align: right; font-size: 0.8rem; margin-top: 5px; color: #666; }
+
+.send-btn {
+    width: 100%; margin-top: 20px; background: var(--claudel-blue);
+    color: white; border: none; padding: 18px; border-radius: 15px;
+    font-size: 1.2rem; font-weight: bold; cursor: pointer;
+}
+
+/* SUCCESS STATE */
+.hidden { display: none !important; }
+.check-icon { font-size: 4rem; color: #06d6a0; }
+.timer-wrapper { width: 100%; height: 6px; background: #eee; margin-top: 20px; border-radius: 10px; overflow: hidden; }
+.timer-bar { 
+    width: 100%; height: 100%; background: var(--claudel-blue); 
+    animation: shrink 5s linear forwards; 
+}
+
+@keyframes shrink { from { width: 100%; } to { width: 0%; } }
+footer { margin-top: 20px; font-size: 0.8rem; opacity: 0.7; }

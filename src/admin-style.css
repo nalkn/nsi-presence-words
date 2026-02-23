@@ -1,0 +1,169 @@
+/* --- DESIGN DÉDIÉ AUX VÉRIFICATEURS (ADMIN) --- */
+:root {
+    --admin-bg: #f4f7f6;
+    --primary: #002d5a;
+    --card-bg: #ffffff;
+    --approve: #27ae60;
+    --reject: #e63946;
+    --text-muted: #6c757d;
+}
+
+body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background-color: var(--admin-bg);
+    margin: 0;
+    padding: 0;
+    color: var(--primary);
+}
+
+/* Barre de titre */
+.admin-header {
+    background: var(--primary);
+    color: white;
+    padding: 30px 20px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.status-badge {
+    display: inline-block;
+    background: var(--reject);
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    animation: blink 1.5s infinite;
+}
+
+.admin-container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 0 20px 40px;
+}
+
+.section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+#msg-count {
+    background: var(--primary);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-weight: bold;
+}
+
+/* CARTES DE MODÉRATION */
+.admin-card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: row; /* Côte à côte sur PC */
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    border-left: 6px solid var(--primary);
+    animation: popIn 0.3s ease-out;
+}
+
+.admin-card-content {
+    flex: 1;
+    margin-right: 15px;
+    /* Empêche le texte de déborder */
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-width: 0; 
+}
+
+.admin-card-content .label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.admin-card-content .text {
+    font-size: 1.3rem;
+    margin: 5px 0;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.admin-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* BOUTONS */
+.btn {
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    color: white;
+    transition: all 0.2s ease;
+    min-width: 80px;
+}
+
+.btn-approve { background: var(--approve); }
+.btn-reject { background: var(--reject); }
+
+.btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+/* --- ADAPTATION MOBILE (Écrans de moins de 600px) --- */
+@media (max-width: 600px) {
+    .admin-card {
+        flex-direction: column; /* On empile Message et Boutons */
+        align-items: flex-start;
+    }
+
+    .admin-card-content {
+        margin-right: 0;
+        margin-bottom: 15px;
+        width: 100%;
+    }
+
+    .admin-actions {
+        width: 100%;
+        display: flex;
+    }
+
+    .btn {
+        flex: 1; /* Les boutons prennent toute la largeur égale */
+        padding: 15px;
+        font-size: 1rem;
+    }
+}
+
+/* Animations et messages d'attente */
+.waiting {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+@keyframes popIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}

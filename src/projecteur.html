@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>PRÉSENCE - Projection Dynamique</title>
+    <style>
+        body {
+            background: radial-gradient(circle, #001a33 0%, #000000 100%);
+            color: #ffffff;
+            font-family: 'Optima', 'Georgia', serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+        }
+
+        #container { width: 90%; text-align: center; }
+
+        .mot-affiche {
+            display: inline-block;
+            opacity: 0;
+            transform: scale(0.8) translateY(20px);
+            transition: all 1.5s cubic-bezier(0.16, 1, 0.3, 1);
+            word-wrap: break-word;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+        }
+
+        .mot-affiche.visible {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        .ambiance {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: url('https://www.transparenttextures.com/patterns/stardust.png');
+            opacity: 0.15;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="ambiance"></div>
+    <div id="container">
+        <div id="affichage" class="mot-affiche">Initialisation...</div>
+    </div>
+
+    <script>
+        let playlist = []; // Liste des messages à afficher
+        let indexActuel = -1;
+        let idsConnus = new Set(); // Pour ne pas ajouter deux fois le même
+        let estEnTrainDAnimer = false;
+
+        function ajusterTaille(texte) {
+            const el = document.getElementById('affichage');
+            let tailleBase = 15; 
+            let ratio = texte.length * 0.4;
+            el.style.fontSize = (tailleBase - ratio) + "vw";
+        }
+
+        // 1. Récupère les messages et met à jour la playlist
+        function synchroniserMessages() {
+            fetch('/get_messages')
+            .then(res => res.json())
+            .then(data => {
+                const valides = data.valides;
+                
+                valides.forEach(msg => {
+                    if (!idsConnus.has(msg.id)) {
+                        // C'est un nouveau message ! On l'ajoute au début de la file d'attente
+                        // pour qu'il soit prioritaire (juste après celui en cours)
+                        playlist.splice(indexActuel + 1, 0, msg);
+                        idsConnus.add(msg.id);
+                        console.log("Nouveau message prioritaire ajouté:", msg.texte);
+                    }
+                });
+            });
+        }
+
+        // 2. Gère l'affichage en boucle
+        function cycleProjection() {
+            if (playlist.length === 0 || estEnTrainDAnimer) return;
+
+            estEnTrainDAnimer = true;
+            const el = document.getElementById('affichage');
+
+            // On passe au message suivant (ou on revient au début)
+            indexActuel = (indexActuel + 1) % playlist.length;
+            const message = playlist[indexActuel];
+
+            // Animation de sortie
+            el.classList.remove('visible');
+
+            setTimeout(() => {
+                el.innerText = message.texte;
+                ajusterTaille(message.texte);
+                
+                // Animation d'entrée
+                el.classList.add('visible');
+
+                // On laisse le mot affiché 6 secondes avant de passer au suivant
+                setTimeout(() => {
+                    estEnTrainDAnimer = false;
+                }, 6000);
+
+            }, 1500);
+        }
+
+        // On vérifie le serveur toutes les 3 secondes pour les nouveaux messages
+        setInterval(synchroniserMessages, 3000);
+        
+        // On lance la boucle de projection (vérifie toutes les secondes si elle peut animer)
+        setInterval(cycleProjection, 1000);
+
+        // Lancement immédiat
+        synchroniserMessages();
+    </script>
+</body>
+</html>
