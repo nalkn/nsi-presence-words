@@ -2,122 +2,169 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>PRÉSENCE - Projection Dynamique</title>
+    <title>Projet PRÉSENCE - Flux Des Mots</title>
     <style>
-        body {
-            background: radial-gradient(circle, #001a33 0%, #000000 100%);
-            color: #ffffff;
-            font-family: 'Optima', 'Georgia', serif;
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000814; }
+        
+        canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 1;
         }
 
-        #container { width: 90%; text-align: center; }
+        #container {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            width: 95vw;
+            text-align: center;
+            pointer-events: none;
+        }
 
         .mot-affiche {
             display: inline-block;
+            color: #ffffff;
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            font-weight: 400;
+            letter-spacing: 2px;
+            white-space: nowrap; 
             opacity: 0;
-            transform: scale(0.8) translateY(20px);
-            transition: all 1.5s cubic-bezier(0.16, 1, 0.3, 1);
-            word-wrap: break-word;
-            text-transform: uppercase;
-            letter-spacing: 5px;
+            filter: blur(10px);
+            transform: scale(0.95);
+            transition: opacity 1.2s ease, filter 1.2s ease, transform 1.2s ease;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.6);
         }
 
         .mot-affiche.visible {
             opacity: 1;
-            transform: scale(1) translateY(0);
-        }
-
-        .ambiance {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: url('https://www.transparenttextures.com/patterns/stardust.png');
-            opacity: 0.15;
-            pointer-events: none;
+            filter: blur(0px);
+            transform: scale(1);
         }
     </style>
 </head>
 <body>
-    <div class="ambiance"></div>
-    <div id="container">
-        <div id="affichage" class="mot-affiche">Initialisation...</div>
-    </div>
 
-    <script>
-        let playlist = []; // Liste des messages à afficher
-        let indexActuel = -1;
-        let idsConnus = new Set(); // Pour ne pas ajouter deux fois le même
-        let estEnTrainDAnimer = false;
+<canvas id="canvas"></canvas>
 
-        function ajusterTaille(texte) {
-            const el = document.getElementById('affichage');
-            let tailleBase = 15; 
-            let ratio = texte.length * 0.4;
-            el.style.fontSize = (tailleBase - ratio) + "vw";
+<div id="container">
+    <div id="affichage" class="mot-affiche">Initialisation...</div>
+</div>
+
+<script>
+    // Fond étoilé lent
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    let particles = [];
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener("resize", resize);
+    resize();
+
+    const speed = 0.25; 
+    class StarParticle {
+        constructor() { this.init(); }
+        init() {
+            this.x = Math.random() * canvas.width;
+            this.y = Math.random() * canvas.height;
+            this.vx = 0; this.vy = 0;
+            this.age = 0;
+            this.maxAge = Math.random() * 400 + 200;
+            this.color = Math.random() > 0.8 ? "#7dd3fc" : "#f0f9ff";
+        }
+        update(t) {
+            let angle = (Math.sin(this.x * 0.0015 + t * 0.0003) + Math.cos(this.y * 0.0015 + t * 0.0002)) * Math.PI * 2;
+            this.vx += Math.cos(angle) * 0.04; this.vy += Math.sin(angle) * 0.04;
+            this.vx *= 0.98; this.vy *= 0.98;
+            this.x += this.vx * speed; this.y += this.vy * speed;
+            this.age++;
+            if (this.x < 0 || this.x > canvas.width || this.y < 0 || this.y > canvas.height || this.age > this.maxAge) this.init();
+        }
+        draw() {
+            let opacity = Math.sin((this.age / this.maxAge) * Math.PI) * 0.3;
+            ctx.fillStyle = this.color;
+            ctx.globalAlpha = opacity;
+            ctx.beginPath(); ctx.arc(this.x, this.y, 1.1, 0, Math.PI * 2); ctx.fill();
+        }
+    }
+    for (let i = 0; i < 350; i++) particles.push(new StarParticle());
+    function animate(t) {
+        ctx.fillStyle = "rgba(0, 8, 20, 0.15)";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => { p.update(t); p.draw(); });
+        requestAnimationFrame(animate);
+    }
+    animate(0);
+
+    // Logique d'affichage
+    class ProjecteurScene {
+        constructor() {
+            this.playlist = [{id: 0, texte: "PRÉSENCE"}];
+            this.index = 0;
+            this.idsConnus = new Set([0]);
+            this.el = document.getElementById('affichage');
+            this.isAnimating = false;
         }
 
-        // 1. Récupère les messages et met à jour la playlist
-        function synchroniserMessages() {
-            fetch('/get_messages')
-            .then(res => res.json())
-            .then(data => {
-                const valides = data.valides;
+        async fetchMessages() {
+            try {
+                const res = await fetch('/get_messages');
+                const data = await res.json();
                 
-                valides.forEach(msg => {
-                    if (!idsConnus.has(msg.id)) {
-                        // C'est un nouveau message ! On l'ajoute au début de la file d'attente
-                        // pour qu'il soit prioritaire (juste après celui en cours)
-                        playlist.splice(indexActuel + 1, 0, msg);
-                        idsConnus.add(msg.id);
-                        console.log("Nouveau message prioritaire ajouté:", msg.texte);
+                // On parcourt les messages validés
+                data.valides.forEach(msg => {
+                    if (!this.idsConnus.has(msg.id)) {
+                        // On insère le nouveau message juste APRÈS le message actuel
+                        // pour qu'il soit le prochain à être diffusé.
+                        this.playlist.splice(this.index + 1, 0, msg);
+                        this.idsConnus.add(msg.id);
+                        console.log("Nouveau message prioritaire :", msg.texte);
                     }
                 });
-            });
+            } catch (e) {}
         }
 
-        // 2. Gère l'affichage en boucle
-        function cycleProjection() {
-            if (playlist.length === 0 || estEnTrainDAnimer) return;
-
-            estEnTrainDAnimer = true;
-            const el = document.getElementById('affichage');
-
-            // On passe au message suivant (ou on revient au début)
-            indexActuel = (indexActuel + 1) % playlist.length;
-            const message = playlist[indexActuel];
-
-            // Animation de sortie
-            el.classList.remove('visible');
-
-            setTimeout(() => {
-                el.innerText = message.texte;
-                ajusterTaille(message.texte);
-                
-                // Animation d'entrée
-                el.classList.add('visible');
-
-                // On laisse le mot affiché 6 secondes avant de passer au suivant
-                setTimeout(() => {
-                    estEnTrainDAnimer = false;
-                }, 6000);
-
-            }, 1500);
+        ajusterTailleOptimale(texte) {
+            const containerWidth = window.innerWidth * 0.9;
+            const containerHeight = window.innerHeight * 0.7;
+            
+            let fontSize = 10;
+            this.el.style.fontSize = fontSize + "px";
+            
+            while (this.el.offsetWidth < containerWidth && this.el.offsetHeight < containerHeight && fontSize < 300) {
+                fontSize += 2;
+                this.el.style.fontSize = fontSize + "px";
+            }
+            this.el.style.fontSize = (fontSize * 0.9) + "px";
         }
 
-        // On vérifie le serveur toutes les 3 secondes pour les nouveaux messages
-        setInterval(synchroniserMessages, 3000);
-        
-        // On lance la boucle de projection (vérifie toutes les secondes si elle peut animer)
-        setInterval(cycleProjection, 1000);
+        async cycle() {
+            if (this.playlist.length === 0 || this.isAnimating) return;
+            this.isAnimating = true;
 
-        // Lancement immédiat
-        synchroniserMessages();
-    </script>
+            // Sortie
+            this.el.classList.remove('visible');
+            await new Promise(r => setTimeout(r, 1300));
+
+            // Passage au suivant
+            this.index = (this.index + 1) % this.playlist.length;
+            const msg = this.playlist[this.index];
+            
+            this.el.innerText = msg.texte;
+            this.ajusterTailleOptimale(msg.texte);
+
+            // Entrée
+            this.el.classList.add('visible');
+            
+            // Affichage 4 secondes
+            setTimeout(() => { this.isAnimating = false; }, 4000);
+        }
+    }
+
+    const maScene = new ProjecteurScene();
+    setInterval(() => maScene.fetchMessages(), 3000);
+    setInterval(() => maScene.cycle(), 500);
+</script>
+
 </body>
 </html>
