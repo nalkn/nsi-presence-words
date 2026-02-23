@@ -1,9 +1,9 @@
 #!/bin/bash
-#######################################
-#                                     #
-#  Install project server and RaspAP  #
-#                                     #
-#######################################
+#############################################
+#                                           #
+#  Install NSI Presence server with RaspAP  #
+#                                           #
+#############################################
 
 
 set -e
@@ -26,15 +26,22 @@ check_arg() {
     return 1
 }
 
+
+# variables
 workdir=$(pwd)
+install_dir_src="/var/www/html"
+install_dir="$install_dir_src/nsi-presence-words"
+check_config_bin="$install_dir/bin/server-check_config.sh"
 
 
 # help
 if check_arg "--help"; then
     echo "Help:"
-    echo "    --help  : help command"
-    echo "    install : install nsi-presence-words server"
-    echo "    remove  : remove nsi-presence-words server"
+    echo "    --help    : help command"
+    echo "    remove    : remove nsi-presence-words server"
+    echo "    install   : install nsi-presence-words server"
+    echo "    configure : configure the port of the  "
+    echo "                nsi-presence-words server"
     exit 0
 fi
 
@@ -47,9 +54,11 @@ if check_arg "install"; then
     # check raspap
     if ! [ -d "/etc/raspap" ]; then
         echo "[-] RaspAP is not installed !"
-        if [ -f "./raspap.sh" ]; then
+        if [ -f "src/bin/raspap.sh" ]; then
             echo "[*] Installing RaspAP ..."
-            bash ./raspap.sh install
+            bash src/bin/raspap.sh install
+            echo ""
+            echo ""
         else
             echo "[-] Cannot install RaspAP"
             exit
@@ -57,38 +66,69 @@ if check_arg "install"; then
     fi
 
     # install python for hosted server
+    echo "[*] Installing server ..."
     echo "[*] Install python3"
     apt install python3
 
     # clone project
     echo "[*] Installing server ..."
-    rm -rf /var/www/html/nsi-presence-words
-    cp -a src /var/www/html/nsi-presence-words
+    rm -rf $install_dir
+    cp -a src $install_dir
 
     # create pyton venv
     echo "[*] Creating python venv"
-    cd /var/www/html/nsi-presence-words
+    cd $install_dir
     python3 -m venv venv
 
     echo "[*] Installing python requirements"
     ./venv/bin/pip3 install -r $workdir/requirements.txt
 
     # give good perms
-    cd /var/www/html/
-    chown -R www-data:www-data nsi-presence-words
-    chmod 775 /var/www/html/nsi-presence-words
+    chown -R www-data:www-data $install_dir
+    chmod 775 $install_dir
+
+    # check config script
+    chmod +x $check_config_bin
+    cat > "/etc/systemd/system/nsi-presence-words-server-check_config.service" <<- EOF
+[Unit]
+Description=NSI Project server config checker
+After=network.target
+
+[Service]
+Type=simple
+User=root
+ExecStart=$check_config_bin
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # create systemd service
+    echo "[*] Create services"
+    cat > "/etc/systemd/system/nsi-presence-words-server.service" <<- EOF
+[Unit]
+Description=NSI Project server
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=$install_dir
+ExecStart=$install_dir/venv/bin/python3 serveur.py
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
 
     # modify DNS conf (redirect all urls)
     echo "[*] Configuring server ..."
-    cat >> "/etc/dnsmasq.d/090_wlan0.conf" <<- 'EOF'
-
-# Redirect DNS to the Pi (captive portal detection)
-address=/#/10.3.141.1
-
-# Captive Portal Hint (Android / certains OS modernes)
-#dhcp-option=114,http://10.3.141.1/
-EOF
-    systemctl restart dnsmasq
+    bash $check_config_bin
 
     # change lighttpd conf
     cat > "/etc/lighttpd/conf-enabled/50-raspap-router.conf" <<- 'EOF'
@@ -138,74 +178,14 @@ EOF
     systemctl restart lighttpd
     service lighttpd force-reload
 
-    # create a script to check the config at reboot
-    cat > "/usr/local/bin/nsi-server-check_config.sh" <<- 'EOF'
-#!/bin/bash
-
-FILE="/etc/dnsmasq.d/090_wlan0.conf"
-LINE="address=/#/10.3.141.1"
-
-# check config
-if ! grep -Fxq "$LINE" "$FILE"; then
-    echo "[INFO] Ligne absente. Ajout en cours..."
-    echo "$LINE" >> "$FILE"
-   
-    # restart dnsmasq
-    systemctl restart dnsmasq
-    echo "[OK] line added and dnsmasq restarted."
-else
-    echo "[OK] config ok."
-fi
-EOF
-    chmod +x /usr/local/bin/nsi-server-check_config.sh
-
-    # create systemd service to run vnc
-    echo "[*] Creating service"
-    cat > "/etc/systemd/system/nsi-presence-words-server.service" <<- EOF
-[Unit]
-Description=NSI Project server
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/var/www/html/nsi-presence-words
-ExecStart=/var/www/html/nsi-presence-words/venv/bin/python3 serveur.py
-
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    cat > "/etc/systemd/system/nsi-presence-words-server-check_config.service" <<- EOF
-[Unit]
-Description=NSI Project server config checker
-After=network.target
-
-[Service]
-Type=simple
-User=root
-ExecStart=/usr/local/bin/nsi-server-check_config.sh
-
-StandardOutput=journal
-StandardError=journal
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-
     # enable and start service
     systemctl daemon-reload
-    systemctl enable nsi-presence-words-server.service
-    systemctl enable nsi-presence-words-server-check_config.service
-    systemctl start nsi-presence-words-server.service
-    systemctl start nsi-presence-words-server-check_config.service
+    systemctl enable nsi-presence-words-server.service nsi-presence-words-server-check_config.service
+    systemctl start nsi-presence-words-server.service nsi-presence-words-server-check_config.service
     echo "[*] nsi-presence-words-server started"
 
     echo "[+] nsi-presence-words words installed"
+
 
 # remove
 elif check_arg "remove"; then
@@ -213,26 +193,43 @@ elif check_arg "remove"; then
     check_root
 
     # remove project src
-    rm -rf /var/www/html/nsi-presence-words
+    rm -rf $install_dir
 
     # stop and disable service
     echo "[*] Removing nsi-presence-words-server ..."
     rm -f "/etc/systemd/system/nsi-presence-words-server.service"
     rm -f "/etc/systemd/system/nsi-presence-words-server-check_config.service"
-    systemctl stop nsi-presence-words-server.service
-    systemctl stop nsi-presence-words-server-check_config.service
-    systemctl disable nsi-presence-words-server.service
-    systemctl disable nsi-presence-words-server-check_config.service
-    rm -f /usr/local/bin/nsi-server-check_config.sh
+    systemctl stop nsi-presence-words-server.service nsi-presence-words-server-check_config.service
+    systemctl disable nsi-presence-words-server.service nsi-presence-words-server-check_config.service
     systemctl daemon-reload
     echo "[+] nsi-presence-words-server removed"
 
     # remove raspap
-    if [ -f "./raspap.sh" ]; then
+    if [ -f "src/bin/raspap.sh" ]; then
         echo "[*] Removing RaspAP ..."
-        bash ./raspap.sh remove
+        bash src/bin/raspap.sh remove
     else
         echo "[-] Cannot remove RaspAP"
         exit
     fi
+
+
+elif check_arg "configure"; then
+    # check root
+    check_root
+
+    # ask the new port
+    echo "[*] Server configuration"
+    read -p "[?] words-server port: " server_port
+    read -p "[?] Apply configuration and restart server ? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
+
+    # configure port
+    echo "[*] Apply new configuration"
+    echo "PORT=$server_port" > $install_dir/.env
+    echo "PORT=$server_port" > $workdir/qr_code/.env
+
+    # restart server
+    echo "[*] Restarting server ..."
+    systemctl restart nsi-presence-words-server.service
+    echo "[*] New configuration applied"
 fi
