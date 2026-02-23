@@ -3,3 +3,6 @@
 
 # qr codes
 *.png
+
+# config
+config/

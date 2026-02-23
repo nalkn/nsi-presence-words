@@ -4,16 +4,22 @@ Ce projet de NSI a pour but d'animer un évènement sur le thème de la Présenc
 
 ## Installation
 
-Pour installer le server et `RaspAP`:
+Mettre le scipt d'installation en executable :
 
 ``` shell
-sudo bash setup.sh install
+chmod +x setup.sh
 ```
 
-Ou pour installer juste le point d'accès :
+Pour installer le server et le point d'accès [RaspAP](https://github.com/RaspAP/raspap-webgui) :
 
 ``` shell
-bash raspap.sh install
+sudo ./setup.sh install
+```
+
+Pour configurer le server (port, mot de passe) :
+
+``` shell
+sudo ./setup.sh configure
 ```
 
 ## Utilisation
@@ -24,16 +30,20 @@ Les pages web du projet :
 
 - page pour envoyer un mot : `http://10.3.141.1/nsi-presence-words/index.html` (qui est redirigée par défault comme portail captif de connexion)
 
-- page pour le projecteur qui affiche les mots avec une animation : `http://10.3.141.1/nsi-presence-words/projecteur.html`
+- page pour le projecteur qui affiche les mots avec une animation : `http://10.3.141.1:<port>/projecteur`
 
-- page admin de gestion : `http://10.3.141.1/nsi-presence-words/admin.html` (protégée par un mot de passe)
+- page admin de gestion : `http://10.3.141.1:<port>/admin` (protégée par un mot de passe)
 
 Créer des [qr codes de connexion](qr_code/README.md)
+
+NOTE : la configuration par défault est :
+
+- port : `5000`, user : `admin`, mdp : `NSI`
 
 ## Désinstallation
 
 Pour désinstaller complètement le server et le point d'accès :
 
 ``` shell
-sudo bash setup.sh remove
+sudo ./setup.sh remove
 ```

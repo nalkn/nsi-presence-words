@@ -26,6 +26,58 @@ check_arg() {
     return 1
 }
 
+configure_lighttpd() {
+    # configure lighttpd to allow authorized pages and restrict the others
+    cat > "/etc/lighttpd/conf-enabled/50-raspap-router.conf" <<- EOF
+server.modules += (
+    "mod_rewrite",
+    "mod_proxy"
+)
+
+# captive portal Android / Apple / Windows
+\$HTTP["host"] =~ "^(connectivitycheck\.gstatic\.com|www\.msftconnecttest\.com|captive\.apple\.com)$" {
+
+    # check captive portal url
+    \$HTTP["url"] =~ "^/(generate_204|redirect|hotspot-detect\.html)$" {
+        # captive portal redirection
+        url.redirect = ( ".*" => "/nsi-presence-words/index.html" )
+    }
+}
+
+# redirect all to RaspAP
+\$HTTP["host"] !~ "^(connectivitycheck\.gstatic\.com|www\.msftconnecttest\.com|captive\.apple\.com)$" {
+
+    # ckeck if the url starts with (and skip redirection)
+    \$HTTP["url"] =~ "^/(?!(dist|app|ajax|config|rootCA\.pem|nsi-presence-words)).*" {
+        # raspap redirection
+        url.rewrite-once = ( "^/(.*?)(\?.+)?$"=>"/index.php/\$1\$2" )
+        server.error-handler-404 = "/index.php"
+    }
+}
+
+# proxy /nsi-presence-words to Flask server on port $1
+\$HTTP["url"] =~ "^/(favicon\.ico|envoyer|get_messages|moderer)$" {
+    # rewrite url
+    url.rewrite-once = (
+        "^/(/.*|)$" => "\1"
+    )
+
+    # redirect to server
+    proxy.server = (
+        "" => ( ( "host" => "127.0.0.1", "port" => $1 ) )
+    )
+}
+
+# Filter Flask server pages on /nsi-presence-words
+\$HTTP["url"] =~ "^/nsi-presence-words" {
+    # allow only the word page
+    \$HTTP["url"] !~ "/(index\.html|style\.css)$" {
+        url.redirect = ( ".*" => "/nsi-presence-words/index.html" )
+    }
+}
+EOF
+}
+
 
 # variables
 workdir=$(pwd)
@@ -131,46 +183,7 @@ EOF
     bash $check_config_bin
 
     # change lighttpd conf
-    cat > "/etc/lighttpd/conf-enabled/50-raspap-router.conf" <<- 'EOF'
-server.modules += (
-    "mod_rewrite",
-    "mod_proxy"
-)
-
-# captive portal Android / Apple / Windows
-$HTTP["host"] =~ "^(connectivitycheck\.gstatic\.com|www\.msftconnecttest\.com|captive\.apple\.com)$" {
-
-    # check captive portal url
-    $HTTP["url"] =~ "^/(generate_204|redirect|hotspot-detect\.html)$" {
-        # captive portal redirection
-        url.redirect = ( ".*" => "/nsi-presence-words/index.html" )
-    }
-}
-
-# redirect all to RaspAP
-$HTTP["host"] !~ "^(connectivitycheck\.gstatic\.com|www\.msftconnecttest\.com|captive\.apple\.com)$" {
-
-    # ckeck if the url starts with (and skip)
-    $HTTP["url"] =~ "^/(?!(dist|app|ajax|config|rootCA\.pem|nsi-presence-words)).*" {
-        # raspap redirection
-        url.rewrite-once = ( "^/(.*?)(\?.+)?$"=>"/index.php/$1$2" )
-        server.error-handler-404 = "/index.php"
-    }
-}
-
-# proxy /nsi-presence-words to Flask server on port 5000
-$HTTP["url"] =~ "^/(favicon\.ico|envoyer|get_messages|moderer)$" {
-    # rewrite url
-    url.rewrite-once = (
-        "^/(/.*|)$" => "\1"
-    )
-
-    # redirect to server
-    proxy.server = (
-        "" => ( ( "host" => "127.0.0.1", "port" => 5000 ) )
-    )
-}
-EOF
+    configure_lighttpd 5000
 
     # enable lighttpd proxy http
     lighty-enable-mod proxy || true
@@ -221,12 +234,22 @@ elif check_arg "configure"; then
     # ask the new port
     echo "[*] Server configuration"
     read -p "[?] words-server port: " server_port
+    read -p "[?] words-server moderation password: " modo_password
     read -p "[?] Apply configuration and restart server ? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
 
     # configure port
     echo "[*] Apply new configuration"
-    echo "PORT=$server_port" > $install_dir/.env
+    cat > "$install_dir/.env" <<- EOF
+SERVER_PORT=$server_port
+MODO_PASSWORD=$modo_password
+EOF
+
+    # qr code config
     echo "PORT=$server_port" > $workdir/qr_code/.env
+
+    # reconfigure lighttpd for proxy
+    configure_lighttpd $server_port
+    systemctl restart lighttpd
 
     # restart server
     echo "[*] Restarting server ..."
