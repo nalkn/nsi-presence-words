@@ -28,6 +28,7 @@ check_arg() {
 
 configure_lighttpd() {
     # configure lighttpd to allow authorized pages and restrict the others
+    captive_portal_urls="connectivitycheck\.gstatic\.com|connect\.rom\.miui\.com|clients3\.google\.com|www\.msftconnecttest\.com|captive\.apple\.com"
     cat > "/etc/lighttpd/conf-enabled/50-raspap-router.conf" <<- EOF
 server.modules += (
     "mod_rewrite",
@@ -35,7 +36,7 @@ server.modules += (
 )
 
 # captive portal Android / Apple / Windows
-\$HTTP["host"] =~ "^(connectivitycheck\.gstatic\.com|www\.msftconnecttest\.com|captive\.apple\.com)$" {
+\$HTTP["host"] =~ "^($captive_portal_urls)$" {
 
     # check captive portal url
     \$HTTP["url"] =~ "^/(generate_204|redirect|hotspot-detect\.html)$" {
@@ -45,7 +46,7 @@ server.modules += (
 }
 
 # redirect all to RaspAP
-\$HTTP["host"] !~ "^(connectivitycheck\.gstatic\.com|www\.msftconnecttest\.com|captive\.apple\.com)$" {
+\$HTTP["host"] !~ "^($captive_portal_urls)$" {
 
     # ckeck if the url starts with (and skip redirection)
     \$HTTP["url"] =~ "^/(?!(dist|app|ajax|config|rootCA\.pem|nsi-presence-words)).*" {
