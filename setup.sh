@@ -119,7 +119,6 @@ if check_arg "install"; then
     fi
 
     # install python for hosted server
-    echo "[*] Installing server ..."
     echo "[*] Install python3"
     apt install python3
 
@@ -189,8 +188,8 @@ EOF
     # enable lighttpd proxy http
     lighty-enable-mod proxy || true
     lighty-enable-mod proxy_http || true
-    systemctl restart lighttpd
     service lighttpd force-reload
+    systemctl restart lighttpd
 
     # enable and start service
     systemctl daemon-reload
