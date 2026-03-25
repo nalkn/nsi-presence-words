@@ -1,6 +1,6 @@
-/* --- DESIGN DÉDIÉ AUX VÉRIFICATEURS (ADMIN) --- */
+/* --- DESIGN DÉDIÉ AUX VÉRIFICATEURS (MODERATION) --- */
 :root {
-    --admin-bg: #f4f7f6;
+    --modo-bg: #f4f7f6;
     --primary: #002d5a;
     --card-bg: #ffffff;
     --approve: #27ae60;
@@ -10,14 +10,14 @@
 
 body {
     font-family: 'Segoe UI', system-ui, sans-serif;
-    background-color: var(--admin-bg);
+    background-color: var(--modo-bg);
     margin: 0;
     padding: 0;
     color: var(--primary);
 }
 
 /* Barre de titre */
-.admin-header {
+.modo-header {
     background: var(--primary);
     color: white;
     padding: 30px 20px;
@@ -36,7 +36,7 @@ body {
     animation: blink 1.5s infinite;
 }
 
-.admin-container {
+.modo-container {
     max-width: 800px;
     margin: 20px auto;
     padding: 0 20px 40px;
@@ -58,7 +58,7 @@ body {
 }
 
 /* CARTES DE MODÉRATION */
-.admin-card {
+.modo-card {
     background: var(--card-bg);
     border-radius: 12px;
     padding: 20px;
@@ -72,7 +72,7 @@ body {
     animation: popIn 0.3s ease-out;
 }
 
-.admin-card-content {
+.modo-card-content {
     flex: 1;
     margin-right: 15px;
     /* Empêche le texte de déborder */
@@ -81,21 +81,21 @@ body {
     min-width: 0; 
 }
 
-.admin-card-content .label {
+.modo-card-content .label {
     font-size: 0.7rem;
     color: var(--text-muted);
     font-weight: bold;
     text-transform: uppercase;
 }
 
-.admin-card-content .text {
+.modo-card-content .text {
     font-size: 1.3rem;
     margin: 5px 0;
     font-weight: 600;
     color: var(--primary);
 }
 
-.admin-actions {
+.modo-actions {
     display: flex;
     gap: 10px;
 }
@@ -126,18 +126,18 @@ body {
 
 /* --- ADAPTATION MOBILE (Écrans de moins de 600px) --- */
 @media (max-width: 600px) {
-    .admin-card {
+    .modo-card {
         flex-direction: column; /* On empile Message et Boutons */
         align-items: flex-start;
     }
 
-    .admin-card-content {
+    .modo-card-content {
         margin-right: 0;
         margin-bottom: 15px;
         width: 100%;
     }
 
-    .admin-actions {
+    .modo-actions {
         width: 100%;
         display: flex;
     }

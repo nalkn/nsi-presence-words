@@ -12,12 +12,13 @@ from flask import Flask, Response, request, send_from_directory, jsonify, sessio
 if getattr(sys, 'frozen', False):
     base_path = sys._MEIPASS  # .exe
 else:
-    base_path = os.path.abspath(".") # .py
+    base_path = os.path.dirname(__file__) # .py
 
 # load configuration
 dotenv.load_dotenv()
-MODO_PASSWORD = os.getenv("MODO_PASSWORD", "NSI")
 SERVER_PORT = int(os.getenv("SERVER_PORT", "5000"))
+MODO_USER = os.getenv("MODO_USER", "modo")
+MODO_PASSWORD = os.getenv("MODO_PASSWORD", "modo")
 
 # init serveur
 app = Flask(__name__)
@@ -34,6 +35,9 @@ for f_path in [DATA_FILE, VALIDE_FILE, REJETE_FILE]:
         with open(f_path, "w") as f:
             json.dump({"en_attente":[], "valides":[], "rejetes":[]} if "messages" in f_path else [], f)
 
+def check_auth(auth):
+    return auth.username == MODO_USER and auth.password == MODO_PASSWORD
+
 # server paths
 @app.route('/')
 def index():
@@ -47,18 +51,15 @@ def static_f(p):
         )
     return send_from_directory(base_path, p)
 
-def check_auth(auth):
-    return auth.username == "admin" and auth.password == MODO_PASSWORD
-
-@app.route('/admin', methods=['GET', 'POST'])
-def admin():
+@app.route('/moderation', methods=['GET', 'POST'])
+def moderation():
     auth = request.authorization
     if not auth or not check_auth(auth):
         return Response(
             'Mot de passe requis', 401,
             {'WWW-Authenticate': 'Basic realm="Login Required"'}
         )
-    return send_from_directory(base_path, 'admin.html')
+    return send_from_directory(base_path, 'moderation.html')
 
 @app.route('/projecteur')
 def projecteur():

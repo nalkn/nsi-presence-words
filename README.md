@@ -1,22 +1,22 @@
-# NSI "Présence" Projet - Words
+# NSI Projet Présence - Words
 
 Ce projet de NSI a pour but d'animer un évènement sur le thème de la Présence et sert de serveur et de point d'accès pour pouvoir s'y conecter et pouvoir ajouter un mot personnel sur le thème de la présence.
 
 ## Installation
 
-Mettre le scipt d'installation en executable :
+Autoriser l'execution du script d'installation `setup.sh` :
 
 ``` shell
 chmod +x setup.sh
 ```
 
-Pour installer le server et le point d'accès [RaspAP](https://github.com/RaspAP/raspap-webgui) :
+Installer le server du projet et le point d'accès [RaspAP](https://github.com/RaspAP/raspap-webgui) :
 
 ``` shell
 sudo ./setup.sh install
 ```
 
-Pour configurer le server (port, mot de passe) :
+Pour configurer le server (port, utilisateur, mot de passe) :
 
 ``` shell
 sudo ./setup.sh configure
@@ -32,17 +32,25 @@ Les pages web du projet :
 
 - page pour le projecteur qui affiche les mots avec une animation : `http://10.3.141.1:<port>/projecteur`
 
-- page admin de gestion : `http://10.3.141.1:<port>/admin` (protégée par un mot de passe)
+- page admin de gestion : `http://10.3.141.1:<port>/moderation` (protégée par un mot de passe)
 
 Créer des [qr codes de connexion](qr_code/README.md)
 
-NOTE : la configuration par défault est :
+NOTE : la configuration par défaut est :
 
-- port : `5000`, user : `admin`, mdp : `NSI`
+- port : `5000`, user : `modo`, mdp : `modo`
+
+## Mettre à jour
+
+Pour mettre à jour le server et le point d'accès RaspAP:
+
+``` shell
+sudo ./setup.sh update
+```
 
 ## Désinstallation
 
-Pour désinstaller complètement le server et le point d'accès :
+Pour désinstaller complètement le server et le point d'accès RaspAP:
 
 ``` shell
 sudo ./setup.sh remove

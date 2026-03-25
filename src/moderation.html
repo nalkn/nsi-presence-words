@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PRÉSENCE - Espace Admin</title>
-    <link rel="stylesheet" href="admin-style.css">
+    <title>PRÉSENCE - Espace Modérateur</title>
+    <link rel="stylesheet" href="moderation-style.css">
 </head>
 <body>
-    <div class="admin-wrapper">
-        <header class="admin-header">
+    <div class="modo-wrapper">
+        <header class="modo-header">
             <div class="status-badge">LIVE</div>
             <h1>PANNEAU DE CONTRÔLE</h1>
             <p>Vérification des mots en temps réel</p>
         </header>
 
-        <main class="admin-container">
+        <main class="modo-container">
             <div class="section-title">
                 <h2>Mots en attente</h2>
                 <span id="msg-count">0</span>
@@ -48,12 +48,12 @@
                     } else {
                         messages.forEach(m => {
                             nouveauHTML += `
-                                <div class="admin-card">
-                                    <div class="admin-card-content">
+                                <div class="modo-card">
+                                    <div class="modo-card-content">
                                         <span class="label">PENSÉE REÇUE :</span>
                                         <p class="text">${m.texte}</p>
                                     </div>
-                                    <div class="admin-actions">
+                                    <div class="modo-actions">
                                         <button class="btn btn-approve" onclick="moderer(${m.id}, 'valider')">OUI</button>
                                         <button class="btn btn-reject" onclick="moderer(${m.id}, 'supprimer')">NON</button>
                                     </div>

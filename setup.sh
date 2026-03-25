@@ -9,26 +9,95 @@
 set -e
 
 
+# variables
+workdir=$(pwd)
+install_dir_src="/var/www/html"
+install_dir="$install_dir_src/nsi-presence-words"
+check_config_bin="$install_dir/bin/server-check_config.sh"
+
+captive_portal_urls="connectivitycheck\.gstatic\.com|connect\.rom\.miui\.com|clients3\.google\.com|www\.msftconnecttest\.com|captive\.apple\.com"
+default_port="5000"
+default_user="modo"
+default_password="modo"
+
+
 # functions
-check_root() {
-    if [ $(whoami) != "root" ]; then
-        echo "[!] This program might be launched in root !"
-        exit 1
-    fi
+print_usage() {
+    echo "Usage:"
+    echo "    install   : install nsi-presence-words server"
+    echo "    configure : configure the port of the  "
+    echo "                nsi-presence-words server"
+    echo "    update    : update nsi-presence-words server"
+    echo "    remove    : remove nsi-presence-words server"
+    echo "    --help    : help command"
+    exit 0
 }
 
 all_args=$@
+action=$1
+next_arg=$2
 
-check_arg() {
-    for arg in $all_args; do
-        [[ "$arg" == "$1" ]] && return 0
+check_args() {
+    # only use action
+    if [ ! -z "$next_arg" ]; then
+        echo "[!] Invalid usage : $0 $all_args"
+        return 1
+    fi
+
+    # valid action
+    for arg in "install" "configure" "update" "remove" "--help"; do
+        [[ "$action" == "$arg" ]] && return 0
     done
+    echo "[!] Invalid action : $action"
     return 1
+}
+
+install_src() {
+    rm -rf $install_dir
+    cp -a src $install_dir
+
+    # create pyton venv
+    echo "[*] Creating python venv"
+    cd $install_dir
+    python3 -m venv venv
+    echo "[*] Installing python requirements"
+    ./venv/bin/pip3 install -r $workdir/requirements.txt
+
+    # give good perms
+    chown -R www-data:www-data $install_dir
+    chmod 775 $install_dir
+    chmod +x $check_config_bin $workdir/setup.sh
+}
+
+configure_credentials() {
+    # configure port and moderation data
+    cat > "$install_dir/.env" <<- EOF
+SERVER_PORT='$1'
+MODO_USER='$2'
+MODO_PASSWORD='$3'
+EOF
+
+    # qr code config
+    echo "PORT=$1" > $workdir/qr_code/.env
+}
+
+load_credentials() {
+    # backup env file
+    if [ -f "$install_dir/.env" ]; then
+        cp "$install_dir/.env" "$workdir/.env.bak"
+    fi
+
+    # load port and moderation data
+    if [ -f "$workdir/.env.bak" ]; then
+        source "$workdir/.env.bak"
+        default_port=$SERVER_PORT
+        default_user=$MODO_USER
+        default_password=$MODO_PASSWORD
+    fi
 }
 
 configure_lighttpd() {
     # configure lighttpd to allow authorized pages and restrict the others
-    captive_portal_urls="connectivitycheck\.gstatic\.com|connect\.rom\.miui\.com|clients3\.google\.com|www\.msftconnecttest\.com|captive\.apple\.com"
     cat > "/etc/lighttpd/conf-enabled/50-raspap-router.conf" <<- EOF
 server.modules += (
     "mod_rewrite",
@@ -80,30 +149,27 @@ EOF
 }
 
 
-# variables
-workdir=$(pwd)
-install_dir_src="/var/www/html"
-install_dir="$install_dir_src/nsi-presence-words"
-check_config_bin="$install_dir/bin/server-check_config.sh"
+# check args
+if ! check_args; then
+    print_usage
+fi
 
 
 # help
-if check_arg "--help"; then
-    echo "Help:"
-    echo "    --help    : help command"
-    echo "    remove    : remove nsi-presence-words server"
-    echo "    install   : install nsi-presence-words server"
-    echo "    configure : configure the port of the  "
-    echo "                nsi-presence-words server"
-    exit 0
+if [ "$action" == "--help" ]; then
+    print_usage
+fi
+
+
+# check root
+if [ $(whoami) != "root" ]; then
+    echo "[!] This program need root !"
+    exit 1
 fi
 
 
 # install
-if check_arg "install"; then
-    # check root
-    check_root
-
+if [ "$action" == "install" ]; then
     # check raspap
     if ! [ -d "/etc/raspap" ]; then
         echo "[-] RaspAP is not installed !"
@@ -114,34 +180,19 @@ if check_arg "install"; then
             echo ""
         else
             echo "[-] Cannot install RaspAP"
-            exit
+            exit 1
         fi
     fi
 
     # install python for hosted server
-    echo "[*] Installing server ..."
     echo "[*] Install python3"
     apt install python3
 
-    # clone project
+    # install src
     echo "[*] Installing server ..."
-    rm -rf $install_dir
-    cp -a src $install_dir
-
-    # create pyton venv
-    echo "[*] Creating python venv"
-    cd $install_dir
-    python3 -m venv venv
-
-    echo "[*] Installing python requirements"
-    ./venv/bin/pip3 install -r $workdir/requirements.txt
-
-    # give good perms
-    chown -R www-data:www-data $install_dir
-    chmod 775 $install_dir
+    install_src
 
     # check config script
-    chmod +x $check_config_bin
     cat > "/etc/systemd/system/nsi-presence-words-server-check_config.service" <<- EOF
 [Unit]
 Description=NSI Project server config checker
@@ -170,7 +221,7 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=$install_dir
-ExecStart=$install_dir/venv/bin/python3 serveur.py
+ExecStart=$install_dir/venv/bin/python3 server.py
 
 StandardOutput=journal
 StandardError=journal
@@ -179,18 +230,18 @@ StandardError=journal
 WantedBy=multi-user.target
 EOF
 
-    # modify DNS conf (redirect all urls)
-    echo "[*] Configuring server ..."
-    bash $check_config_bin
+    # configure server with credentials
+    echo "[*] Applying default configuration"
+    configure_credentials $default_port $default_user $default_password
 
     # change lighttpd conf
-    configure_lighttpd 5000
+    configure_lighttpd $default_port
 
     # enable lighttpd proxy http
     lighty-enable-mod proxy || true
     lighty-enable-mod proxy_http || true
-    systemctl restart lighttpd
     service lighttpd force-reload
+    systemctl restart lighttpd
 
     # enable and start service
     systemctl daemon-reload
@@ -201,16 +252,75 @@ EOF
     echo "[+] nsi-presence-words words installed"
 
 
+# configure
+elif [ "$action" == "configure" ]; then
+    # ask the new port
+    echo "[*] NSI Words Server configuration"
+    read -p "[?] port: " server_port
+    read -p "[?] moderation user: " modo_user
+    read -p "[?] moderation password: " modo_password
+    echo ""
+    read -p "[?] Apply configuration and restart server ? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
+
+    # configure server with credentials
+    echo "[*] Applying new configuration"
+    configure_credentials $server_port $modo_user $modo_password
+
+    # reconfigure lighttpd for proxy
+    configure_lighttpd $server_port
+    systemctl restart lighttpd
+
+    # restart server
+    echo "[*] Restarting server ..."
+    systemctl restart nsi-presence-words-server.service
+    echo "[*] New configuration applied"
+
+
+# update
+elif [ "$action" == "update" ]; then
+
+    # update raspap
+    read -p "[?] Update RaspAP ? (y/n): " confirm
+    if [[ $confirm == [yY] ]]; then
+        curl -sL https://install.raspap.com | bash -s -- --upgrade
+    fi
+
+    # update server
+    echo "[*] Updating server ..."
+    systemctl stop nsi-presence-words-server.service nsi-presence-words-server-check_config.service
+    su $SUDO_USER -c "git fetch origin && git reset --hard origin/main" > /dev/null 2>&1
+
+    # load used credentials
+    load_credentials
+
+    # update src
+    install_src
+
+    # configure server with credentials
+    echo "[*] Restoring configuration"
+    configure_credentials $default_port $default_user $default_password
+    if [ -f "$workdir/.env.bak" ]; then
+        rm "$workdir/.env.bak"
+    fi
+
+    # change lighttpd conf
+    configure_lighttpd $default_port
+
+    # restart server
+    echo "[*] Restarting server ..."
+    systemctl restart lighttpd
+    systemctl start nsi-presence-words-server.service nsi-presence-words-server-check_config.service
+    echo "[*] NSI Words Server is up-to-date"
+
+
 # remove
-elif check_arg "remove"; then
-    # check root
-    check_root
+elif [ "$action" == "remove" ]; then
+    echo "[*] Removing nsi-presence-words-server ..."
 
     # remove project src
     rm -rf $install_dir
 
     # stop and disable service
-    echo "[*] Removing nsi-presence-words-server ..."
     rm -f "/etc/systemd/system/nsi-presence-words-server.service"
     rm -f "/etc/systemd/system/nsi-presence-words-server-check_config.service"
     systemctl stop nsi-presence-words-server.service nsi-presence-words-server-check_config.service
@@ -224,36 +334,6 @@ elif check_arg "remove"; then
         bash src/bin/raspap.sh remove
     else
         echo "[-] Cannot remove RaspAP"
-        exit
+        exit 1
     fi
-
-
-elif check_arg "configure"; then
-    # check root
-    check_root
-
-    # ask the new port
-    echo "[*] Server configuration"
-    read -p "[?] words-server port: " server_port
-    read -p "[?] words-server moderation password: " modo_password
-    read -p "[?] Apply configuration and restart server ? (y/n): " confirm && [[ $confirm == [yY] ]] || exit 1
-
-    # configure port
-    echo "[*] Apply new configuration"
-    cat > "$install_dir/.env" <<- EOF
-SERVER_PORT=$server_port
-MODO_PASSWORD=$modo_password
-EOF
-
-    # qr code config
-    echo "PORT=$server_port" > $workdir/qr_code/.env
-
-    # reconfigure lighttpd for proxy
-    configure_lighttpd $server_port
-    systemctl restart lighttpd
-
-    # restart server
-    echo "[*] Restarting server ..."
-    systemctl restart nsi-presence-words-server.service
-    echo "[*] New configuration applied"
 fi
