@@ -11,76 +11,129 @@
         <header class="modo-header">
             <div class="status-badge">LIVE</div>
             <h1>PANNEAU DE CONTRÔLE</h1>
-            <p>Vérification des mots en temps réel</p>
+            <p>Vérification des pensées en temps réel</p>
         </header>
 
         <main class="modo-container">
             <div class="section-title">
-                <h2>Mots en attente</h2>
+                <h2>Messages en attente</h2>
                 <span id="msg-count">0</span>
             </div>
-
             <div id="list-container">
-                <p class="waiting">Initialisation des mots...</p>
+                <p class="waiting">Initialisation du flux...</p>
+            </div>
+
+            <hr style="margin: 40px 0; border: none; border-top: 2px dashed #ccc;">
+
+            <div class="section-title">
+                <h2>Messages Validés (Affichés)</h2>
+                <span id="valides-count">0</span>
+            </div>
+            <div id="valides-container">
+                <p class="waiting">Aucun message validé.</p>
+            </div>
+
+            <hr style="margin: 40px 0; border: none; border-top: 2px dashed #ccc;">
+
+            <div class="section-title">
+                <h2>Messages Rejetés (Supprimés)</h2>
+                <span id="rejetes-count">0</span>
+            </div>
+            <div id="rejetes-container">
+                <p class="waiting">Aucun message rejeté.</p>
             </div>
         </main>
     </div>
 
     <script>
-        let dernierContenu = ""; // Variable pour stocker l'état précédent
+// Variables pour stocker l'état précédent de chaque liste
+let lastAttente = "";
+let lastValides = "";
+let lastRejetes = "";
 
-        function fetchMessages() {
-            fetch('/get_messages')
-                .then(res => res.json())
-                .then(data => {
-                    const container = document.getElementById('list-container');
-                    const count = document.getElementById('msg-count');
-                    const messages = data.en_attente;
+function fetchMessages() {
+    fetch('/get_messages')
+        .then(res => res.json())
+        .then(data => {
+            // --- MESSAGES EN ATTENTE ---
+            const containerAttente = document.getElementById('list-container');
+            document.getElementById('msg-count').innerText = data.en_attente.length;
+            
+            let htmlAttente = data.en_attente.length === 0 ? '<p class="waiting">Rien à modérer pour le moment.</p>' : 
+                data.en_attente.map(m => createCard(m, 'attente')).join('');
+                
+            if (htmlAttente !== lastAttente) { 
+                containerAttente.innerHTML = htmlAttente; 
+                lastAttente = htmlAttente; 
+            }
 
-                    // Mise à jour du compteur (ça, ça ne fait pas sauter la page)
-                    count.innerText = messages.length;
+            // --- MESSAGES VALIDÉS ---
+            const containerValides = document.getElementById('valides-container');
+            document.getElementById('valides-count').innerText = data.valides.length;
+            
+            let htmlValides = data.valides.length === 0 ? '<p class="waiting">Aucun message validé.</p>' : 
+                data.valides.map(m => createCard(m, 'valide')).join('');
+                
+            if (htmlValides !== lastValides) { 
+                containerValides.innerHTML = htmlValides; 
+                lastValides = htmlValides; 
+            }
 
-                    // On crée le HTML dans une variable temporaire au lieu de l'injecter direct
-                    let nouveauHTML = "";
-                    
-                    if (messages.length === 0) {
-                        nouveauHTML = '<p class="waiting">Rien à modérer pour le moment.</p>';
-                    } else {
-                        messages.forEach(m => {
-                            nouveauHTML += `
-                                <div class="modo-card">
-                                    <div class="modo-card-content">
-                                        <span class="label">PENSÉE REÇUE :</span>
-                                        <p class="text">${m.texte}</p>
-                                    </div>
-                                    <div class="modo-actions">
-                                        <button class="btn btn-approve" onclick="moderer(${m.id}, 'valider')">OUI</button>
-                                        <button class="btn btn-reject" onclick="moderer(${m.id}, 'supprimer')">NON</button>
-                                    </div>
-                                </div>`;
-                        });
-                    }
+            // --- MESSAGES REJETÉS ---
+            const containerRejetes = document.getElementById('rejetes-container');
+            document.getElementById('rejetes-count').innerText = data.rejetes.length;
+            
+            let htmlRejetes = data.rejetes.length === 0 ? '<p class="waiting">Aucun message rejeté.</p>' : 
+                data.rejetes.map(m => createCard(m, 'rejete')).join('');
+                
+            if (htmlRejetes !== lastRejetes) { 
+                containerRejetes.innerHTML = htmlRejetes; 
+                lastRejetes = htmlRejetes; 
+            }
+        });
+}
 
-                    // On compare : si le nouveau HTML est différent de l'ancien, on met à jour
-                    if (nouveauHTML !== dernierContenu) {
-                        container.innerHTML = nouveauHTML;
-                        dernierContenu = nouveauHTML; // On mémorise le nouvel état
-                    }
-                });
-        }
+// Créer les cartes avec les bons boutons selon la liste
+function createCard(m, listeSource) {
+    let boutons = '';
+    
+    if (listeSource === 'attente') {
+        boutons = `
+            <button class="btn btn-approve" onclick="moderer(${m.id}, 'valider')">OUI</button>
+            <button class="btn btn-reject" onclick="moderer(${m.id}, 'supprimer')">NON</button>`;
+    } else if (listeSource === 'valide') {
+        boutons = `
+            <button class="btn btn-reject" style="background-color: #fca311;" onclick="moderer(${m.id}, 'annuler_valide')">RETIRER (Mettre en attente)</button>`;
+    } else if (listeSource === 'rejete') {
+        boutons = `
+            <button class="btn btn-approve" style="background-color: #fca311;" onclick="moderer(${m.id}, 'annuler_rejete')">RESTAURER (Mettre en attente)</button>`;
+    }
 
-        function moderer(id, action) {
-            fetch('/moderer', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({id: id, action: action})
-            }).then(res => {
-                if(res.ok) fetchMessages();
-            });
-        }
+    return `
+        <div class="modo-card">
+            <div class="modo-card-content">
+                <span class="label">MOT (ID: ${m.id}) :</span>
+                <p class="text">${m.texte}</p>
+            </div>
+            <div class="modo-actions">
+                ${boutons}
+            </div>
+        </div>`;
+}
 
-        setInterval(fetchMessages, 2000);
-        fetchMessages();
+function moderer(id, action) {
+    fetch('/moderer', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: id, action: action})
+    }).then(res => {
+        if(res.ok) fetchMessages(); // Rafraîchit immédiatement après l'action
+    });
+}
+
+// Actualisation toutes les 1 seconde
+setInterval(fetchMessages, 1000);
+fetchMessages();
     </script>
 </body>
 </html>

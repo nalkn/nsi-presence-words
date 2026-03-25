@@ -16,6 +16,7 @@ else:
 
 # load configuration
 dotenv.load_dotenv()
+MOT_MAX_LENGTH = 25
 SERVER_PORT = int(os.getenv("SERVER_PORT", "5000"))
 MODO_USER = os.getenv("MODO_USER", "modo")
 MODO_PASSWORD = os.getenv("MODO_PASSWORD", "modo")
@@ -25,10 +26,13 @@ app = Flask(__name__)
 app.secret_key = 'nsi_claudel_2026'
 
 # json files
-MOT_MAX_LENGTH = 25
-DATA_FILE = "messages.json"
-VALIDE_FILE = "valides.json"
-REJETE_FILE = "rejetes.json"
+data_path = os.path.join(base_path, "data")
+if not os.path.exists(data_path):
+    os.mkdir(data_path)
+
+DATA_FILE = os.path.join(data_path, "messages.json")
+VALIDE_FILE = os.path.join(data_path, "valides.json")
+REJETE_FILE = os.path.join(data_path, "rejetes.json")
 
 for f_path in [DATA_FILE, VALIDE_FILE, REJETE_FILE]:
     if not os.path.exists(f_path):
@@ -87,41 +91,50 @@ def moderer():
     auth = request.authorization
     if not auth or not check_auth(auth):
         return "403", 403
-    
+
     rq = request.json
+    msg_id = rq['id']
+    action = rq['action']
+
     with open(DATA_FILE, "r+") as f:
-        data = json.load(f)
-        for msg in data["en_attente"]:
-            if msg["id"] == rq['id']:
-                dest = "valides" if rq['action'] == 'valider' else "rejetes"
-                data[dest].append(msg)
-                data["en_attente"].remove(msg)
-                # Archivage dans les fichiers .json séparés
-                f_archive = VALIDE_FILE if rq['action'] == 'valider' else REJETE_FILE
-                with open(f_archive, "r+") as fa:
-                    la = json.load(fa); la.append(msg)
-                    fa.seek(0); json.dump(la, fa, indent=4); fa.truncate()
-                break
-        f.seek(0); json.dump(data, f); f.truncate()
+        d = json.load(f)
+
+        msg_found = None
+        src_list = None
+        
+        for cle in ["en_attente", "valides", "rejetes"]:
+            for m in d[cle]:
+                if m["id"] == msg_id:
+                    msg_found = m
+                    src_list = cle
+                    break
+            if msg_found: 
+                break # stop search if found
+                
+        # if message found, move it
+        if msg_found:
+            liste_destination = None
+            if action == 'valider': liste_destination = "valides"
+            elif action == 'supprimer': liste_destination = "rejetes"
+            elif action in ['annuler_valide', 'annuler_rejete']: liste_destination = "en_attente"
+            
+            if liste_destination:
+                # move word to new list
+                d[src_list].remove(msg_found)
+                d[liste_destination].append(msg_found)
+                
+                # save messages.json
+                f.seek(0)
+                json.dump(d, f, indent=4)
+                f.truncate()
+                
+                # synchronisation
+                with open(VALIDE_FILE, "w") as f_val:
+                    json.dump(d["valides"], f_val, indent=4)
+                with open(REJETE_FILE, "w") as f_rej:
+                    json.dump(d["rejetes"], f_rej, indent=4)
+
     return "OK"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=SERVER_PORT)
-
-# ============================================================
-# CREER UN EXE PORTABLE (VENV + EXE)
-# ============================================================
-# Créer l'environnement (Terminal dans le dossier du projet) :
-#    python -m venv venv
-#
-# Activer l'environnement :
-#    .\venv\Scripts\activate
-#
-# Installer les dépendances nécessaires :
-#    pip install flask pyinstaller
-#
-# Créer l'EXE:
-#    pyinstaller --onefile --add-data "index.html;." --add-data "admin.html;." --add-data "projecteur.html;." --add-data "style.css;." --add-data "admin-style.css;." --add-data "script.js;." --add-data "admin-script.js;." serveur.py
-#
-# Résultat : Ton EXE dans le dossier dist.
-# ============================================================

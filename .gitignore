@@ -4,8 +4,9 @@
 # qr codes
 *.png
 
-# config
+# data
 config/
+data/
 
 # idea
 .idea
