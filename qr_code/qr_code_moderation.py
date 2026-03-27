@@ -7,12 +7,12 @@ os.chdir(os.path.dirname(__file__))
 PORT = os.environ["PORT"] if dotenv.load_dotenv() else 5000
 base_url = f"http://10.3.141.1:{PORT}"
 
-for name in ["admin", "projecteur"]:
+for name in ["moderation", "projecteur"]:
     qr = qrcode.QRCode(
         version=None,  # taille automatique
         error_correction=qrcode.constants.ERROR_CORRECT_H,
         box_size=10,   # taille des carrés
-        border=4       # bordure
+        border=3       # bordure
     )
 
     qr.add_data(f"{base_url}/{name}")

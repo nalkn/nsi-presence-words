@@ -6,7 +6,7 @@ os.chdir(os.path.dirname(__file__))
 
 # ap wifi
 ssid = "Projet Présence"
-password = "isidora_@954ght"
+password = ""
 auth_type = "WPA2"  # WPA, WEP
 wifi_string = f"WIFI:T:{auth_type};S:{ssid};P:{password};;"
 
@@ -14,7 +14,7 @@ qr = qrcode.QRCode(
     version=1,
     error_correction=qrcode.constants.ERROR_CORRECT_L,
     box_size=10,
-    border=4,
+    border=3,
 )
 qr.add_data(wifi_string)
 qr.make(fit=True)
@@ -33,7 +33,7 @@ qr = qrcode.QRCode(
     version=None,  # taille automatique
     error_correction=qrcode.constants.ERROR_CORRECT_H,
     box_size=10,   # taille des carrés
-    border=4       # bordure
+    border=3       # bordure
 )
 
 qr.add_data(url)
