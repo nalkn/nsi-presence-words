@@ -199,7 +199,7 @@ Description=NSI Project server config checker
 After=network.target
 
 [Service]
-Type=simple
+Type=oneshot
 User=root
 ExecStart=$check_config_bin
 
@@ -209,9 +209,20 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 EOF
+    cat > "/etc/systemd/system/nsi-presence-words-server-check_config.timer" <<- EOF
+[Unit]
+Description=Run the Project configuration check
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=2min
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+EOF
 
     # create systemd service
-    echo "[*] Create services"
     cat > "/etc/systemd/system/nsi-presence-words-server.service" <<- EOF
 [Unit]
 Description=NSI Project server
@@ -245,8 +256,8 @@ EOF
 
     # enable and start service
     systemctl daemon-reload
-    systemctl enable nsi-presence-words-server.service nsi-presence-words-server-check_config.service
-    systemctl start nsi-presence-words-server.service nsi-presence-words-server-check_config.service
+    systemctl enable nsi-presence-words-server.service nsi-presence-words-server-check_config.timer
+    systemctl start nsi-presence-words-server.service nsi-presence-words-server-check_config.timer
     echo "[*] nsi-presence-words-server started"
 
     echo "[+] nsi-presence-words words installed"
@@ -272,12 +283,13 @@ elif [ "$action" == "configure" ]; then
 
     # restart server
     echo "[*] Restarting server ..."
-    systemctl restart nsi-presence-words-server.service
+    systemctl restart nsi-presence-words-server.service nsi-presence-words-server-check_config.timer
     echo "[*] New configuration applied"
 
 
 # update
 elif [ "$action" == "update" ]; then
+    echo "[*] Update need internet connexion"
 
     # update raspap
     read -p "[?] Update RaspAP ? (y/n): " confirm
@@ -287,7 +299,7 @@ elif [ "$action" == "update" ]; then
 
     # update server
     echo "[*] Updating server ..."
-    systemctl stop nsi-presence-words-server.service nsi-presence-words-server-check_config.service
+    systemctl stop nsi-presence-words-server.service nsi-presence-words-server-check_config.timer
     su $SUDO_USER -c "git fetch origin && git reset --hard origin/main" > /dev/null 2>&1
 
     # load used credentials
@@ -309,7 +321,7 @@ elif [ "$action" == "update" ]; then
     # restart server
     echo "[*] Restarting server ..."
     systemctl restart lighttpd
-    systemctl start nsi-presence-words-server.service nsi-presence-words-server-check_config.service
+    systemctl start nsi-presence-words-server.service nsi-presence-words-server-check_config.timer
     echo "[*] NSI Words Server is up-to-date"
 
 
@@ -322,9 +334,9 @@ elif [ "$action" == "remove" ]; then
 
     # stop and disable service
     rm -f "/etc/systemd/system/nsi-presence-words-server.service"
-    rm -f "/etc/systemd/system/nsi-presence-words-server-check_config.service"
-    systemctl stop nsi-presence-words-server.service nsi-presence-words-server-check_config.service
-    systemctl disable nsi-presence-words-server.service nsi-presence-words-server-check_config.service
+    rm -f "/etc/systemd/system/nsi-presence-words-server-check_config.service" "/etc/systemd/system/nsi-presence-words-server-check_config.timer"
+    systemctl stop nsi-presence-words-server.service nsi-presence-words-server-check_config.timer
+    systemctl disable nsi-presence-words-server.service nsi-presence-words-server-check_config.timer
     systemctl daemon-reload
     echo "[+] nsi-presence-words-server removed"
 

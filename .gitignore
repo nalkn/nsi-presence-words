@@ -7,6 +7,7 @@
 # data
 config/
 data/
+presentation/
 
 # idea
 .idea
