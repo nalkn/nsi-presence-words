@@ -62,9 +62,30 @@
         constructor() {
             this.playlist = [{id: 0, texte: "PRÉSENCE"}];
             this.index = 0;
-            this.idsConnus = new Set([0]);
+            this.validesActuels = new Set([0]); // IDs validés actuellement
             this.el = document.getElementById('affichage');
             this.isAnimating = false;
+        }
+
+        // Mélanger les mots de manière aléatoire (sauf le message courant)
+        melangerMots() {
+            if (this.playlist.length <= 2) return;
+            
+            // Extraire le message courant
+            const msgCourant = this.playlist[this.index];
+            
+            // Créer une playlist sans le message courant
+            const autreMsgs = this.playlist.filter((_, i) => i !== this.index);
+            
+            // Fisher-Yates shuffle
+            for (let i = autreMsgs.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [autreMsgs[i], autreMsgs[j]] = [autreMsgs[j], autreMsgs[i]];
+            }
+            
+            // Reconstruire la playlist avec le message courant au début
+            this.playlist = [msgCourant, ...autreMsgs];
+            this.index = 0;
         }
 
         async fetchMessages() {
@@ -72,17 +93,43 @@
                 const res = await fetch('/get_messages');
                 const data = await res.json();
                 
-                // On parcourt les messages validés
+                const nouveauxValides = new Set();
                 data.valides.forEach(msg => {
-                    if (!this.idsConnus.has(msg.id)) {
-                        // On insère le nouveau message juste APRÈS le message actuel
-                        // pour qu'il soit le prochain à être diffusé.
-                        this.playlist.splice(this.index + 1, 0, msg);
-                        this.idsConnus.add(msg.id);
-                        console.log("Nouveau message prioritaire :", msg.texte);
+                    nouveauxValides.add(msg.id);
+                });
+                
+                // Supprimer les messages qui ne sont plus valides
+                this.playlist = this.playlist.filter(msg => {
+                    if (msg.id === 0) return true; // Garder le message "PRÉSENCE"
+                    return nouveauxValides.has(msg.id);
+                });
+                
+                // Ajuster l'index si nécessaire
+                if (this.index >= this.playlist.length) {
+                    this.index = 0;
+                }
+                
+                // Ajouter les nouveaux messages validés
+                let nouveauxMessages = false;
+                data.valides.forEach(msg => {
+                    if (!this.validesActuels.has(msg.id)) {
+                        this.playlist.push(msg);
+                        this.validesActuels.add(msg.id);
+                        nouveauxMessages = true;
+                        console.log("Nouveau message :", msg.texte);
                     }
                 });
-            } catch (e) {}
+                
+                // Supprimer les IDs qui ne sont plus valides
+                this.validesActuels = new Set([0, ...nouveauxValides]);
+                
+                // Mélanger la playlist si de nouveaux messages ont été ajoutés
+                if (nouveauxMessages) {
+                    this.melangerMots();
+                }
+            } catch (e) {
+                console.error("Erreur lors de la récupération des messages:", e);
+            }
         }
 
         ajusterTailleOptimale(texte) {

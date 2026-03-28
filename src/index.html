@@ -88,18 +88,18 @@
             })
             .then(response => {
                 if (response.ok) {
-                    // Affiche l'écran de succès
+                    // Affiche l'écran de succès et réinitialise le compteur
                     form.classList.add('hidden');
                     successScreen.classList.remove('hidden');
-
+                    form.reset();
+                    
                     // Attend 5 secondes (temps de l'animation CSS) puis réinitialise
                     setTimeout(() => {
                         // Cache l'écran de succès et réaffiche le formulaire
                         successScreen.classList.add('hidden');
                         form.classList.remove('hidden');
                         
-                        // Réinitialise le champ et le compteur
-                        form.reset();
+                        // Réinitialise le compteur
                         counter.innerText = `${MAX_CHARS} caractères restants`;
                         counter.style.color = "#666";
                         counter.style.fontWeight = "normal";
