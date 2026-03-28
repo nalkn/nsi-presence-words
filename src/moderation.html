@@ -42,6 +42,7 @@
             <div id="rejetes-container">
                 <p class="waiting">Aucun message rejeté.</p>
             </div>
+            <button class="btn btn-reject" id="vider-rejetes-btn" onclick="viderRejetes()" style="margin-top: 20px; background-color: #dc3545;">VIDER LES REJETÉS (Archiver)</button>
         </main>
     </div>
 
@@ -129,6 +130,17 @@ function moderer(id, action) {
     }).then(res => {
         if(res.ok) fetchMessages(); // Rafraîchit immédiatement après l'action
     });
+}
+
+function viderRejetes() {
+    if (confirm("Êtes-vous sûr de vouloir archiver tous les messages rejetés ? Cette action est irréversible.")) {
+        fetch('/vider_rejetes', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        }).then(res => {
+            if(res.ok) fetchMessages(); // Rafraîchit après l'action
+        });
+    }
 }
 
 // Actualisation toutes les 1 seconde

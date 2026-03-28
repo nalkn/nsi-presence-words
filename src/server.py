@@ -33,11 +33,12 @@ if not os.path.exists(data_path):
 DATA_FILE = os.path.join(data_path, "messages.json")
 VALIDE_FILE = os.path.join(data_path, "valides.json")
 REJETE_FILE = os.path.join(data_path, "rejetes.json")
+ARCHIVE_FILE = os.path.join(data_path, "archives.json")
 
-for f_path in [DATA_FILE, VALIDE_FILE, REJETE_FILE]:
+for f_path in [DATA_FILE, VALIDE_FILE, REJETE_FILE, ARCHIVE_FILE]:
     if not os.path.exists(f_path):
-        with open(f_path, "w") as f:
-            json.dump({"en_attente":[], "valides":[], "rejetes":[]} if "messages" in f_path else [], f)
+        with open(f_path, "w", encoding='utf-8') as f:
+            json.dump({"en_attente":[], "valides":[], "rejetes":[]} if "messages" in f_path else [] if "archives" not in f_path else {"archives": []}, f, ensure_ascii=False)
 
 def check_auth(auth):
     return auth.username == MODO_USER and auth.password == MODO_PASSWORD
@@ -73,17 +74,17 @@ def projecteur():
 def envoyer():
     rq = request.form.get('message')
     if rq:
-        with open(DATA_FILE, "r+") as f:
+        with open(DATA_FILE, "r+", encoding='utf-8') as f:
             data = json.load(f)
             new_id = len(data["en_attente"]) + len(data["valides"]) + len(data["rejetes"]) + 1
             data["en_attente"].append({"id": new_id, "texte": rq[:MOT_MAX_LENGTH]})
-            f.seek(0); json.dump(data, f); f.truncate()
+            f.seek(0); json.dump(data, f, ensure_ascii=False); f.truncate()
         return "OK"
     return "Err", 400
 
 @app.route('/get_messages')
 def get_messages():
-    with open(DATA_FILE, "r") as f:
+    with open(DATA_FILE, "r", encoding='utf-8') as f:
         return jsonify(json.load(f))
 
 @app.route('/moderer', methods=['POST'])
@@ -96,7 +97,7 @@ def moderer():
     msg_id = rq['id']
     action = rq['action']
 
-    with open(DATA_FILE, "r+") as f:
+    with open(DATA_FILE, "r+", encoding='utf-8') as f:
         d = json.load(f)
 
         msg_found = None
@@ -121,18 +122,53 @@ def moderer():
             if liste_destination:
                 # move word to new list
                 d[src_list].remove(msg_found)
-                d[liste_destination].append(msg_found)
+                d[liste_destination].insert(0, msg_found)
                 
                 # save messages.json
                 f.seek(0)
-                json.dump(d, f, indent=4)
+                json.dump(d, f, indent=4, ensure_ascii=False)
                 f.truncate()
                 
                 # synchronisation
-                with open(VALIDE_FILE, "w") as f_val:
-                    json.dump(d["valides"], f_val, indent=4)
-                with open(REJETE_FILE, "w") as f_rej:
-                    json.dump(d["rejetes"], f_rej, indent=4)
+                with open(VALIDE_FILE, "w", encoding='utf-8') as f_val:
+                    json.dump(d["valides"], f_val, indent=4, ensure_ascii=False)
+                with open(REJETE_FILE, "w", encoding='utf-8') as f_rej:
+                    json.dump(d["rejetes"], f_rej, indent=4, ensure_ascii=False)
+
+    return "OK"
+
+@app.route('/vider_rejetes', methods=['POST'])
+def vider_rejetes():
+    auth = request.authorization
+    if not auth or not check_auth(auth):
+        return "403", 403
+
+    with open(DATA_FILE, "r+", encoding='utf-8') as f:
+        d = json.load(f)
+        rejetes = d["rejetes"]
+        if rejetes:
+            # Charger les archives existantes
+            with open(ARCHIVE_FILE, "r+", encoding='utf-8') as f_arch:
+                archives = json.load(f_arch)
+                # Ajouter les rejetés avec une date d'archivage
+                import datetime
+                date_archivage = datetime.datetime.now().isoformat()
+                for msg in rejetes:
+                    msg["date_archivage"] = date_archivage
+                archives["archives"].extend(rejetes)
+                f_arch.seek(0)
+                json.dump(archives, f_arch, indent=4, ensure_ascii=False)
+                f_arch.truncate()
+            
+            # Vider les rejetés
+            d["rejetes"] = []
+            f.seek(0)
+            json.dump(d, f, indent=4, ensure_ascii=False)
+            f.truncate()
+            
+            # Synchroniser rejetes.json
+            with open(REJETE_FILE, "w", encoding='utf-8') as f_rej:
+                json.dump([], f_rej, indent=4, ensure_ascii=False)
 
     return "OK"
 
