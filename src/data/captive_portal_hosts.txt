@@ -1,0 +1,47 @@
+# -- Android --
+connectivitycheck.android.com
+connectivitycheck.gstatic.com
+clients3.google.com
+www.google.com
+www.google.eu
+play.googleapis.com
+connect.rom.miui.com
+android.clients.google.com
+
+# Samsung specific
+connectivitycheck.samsung.com.cn
+connectivitycheck.samsung.com
+www.samsung.com.cn
+
+# Huawei specific
+connectivitycheck.platform.hicloud.com
+settings.crashlytics.com
+
+# OnePlus specific
+connectivitycheck.oneplus.cn
+connectivitycheck.oneplus.com
+
+# LG specific
+www.lg.com
+
+# Sony specific
+connectivitycheck.sony.net
+
+# Nokia specific
+connectivitycheck.nokia.com
+
+# Motorola specific
+connectivitycheck.motorola.com
+
+# General Android
+www.android.com
+
+
+# -- Apple
+captive.apple.com
+www.appleiphonecell.com
+
+
+# -- Windows --
+www.msftconnecttest.com
+www.msftncsi.com

@@ -5,9 +5,9 @@
 *.png
 
 # data
-config/
-data/
-presentation/
+src/data/*.json
 
-# idea
+# other
+config/
+presentation/
 .idea

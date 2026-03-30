@@ -13,9 +13,9 @@ set -e
 workdir=$(pwd)
 install_dir_src="/var/www/html"
 install_dir="$install_dir_src/nsi-presence-words"
+dir_data="$workdir/src/data"
 check_config_bin="$install_dir/bin/server-check_config.sh"
 
-captive_portal_urls="connectivitycheck\.gstatic\.com|connect\.rom\.miui\.com|clients3\.google\.com|www\.msftconnecttest\.com|captive\.apple\.com"
 default_port="5000"
 default_user="modo"
 default_password="modo"
@@ -96,6 +96,16 @@ load_credentials() {
     fi
 }
 
+load_captive_portal_config() {
+    # load hosts
+    if [ -f "$dir_data/captive_portal_hosts.txt" ]; then
+        captive_portal_hosts=$(grep -v '^$' "$dir_data/captive_portal_hosts.txt" | grep -v '^#' | sed 's/\./\\./g' | paste -sd '|' -)
+    else
+        echo "[-] captive_portal_hosts.txt not found !"
+        exit 1
+    fi
+}
+
 configure_lighttpd() {
     # configure lighttpd to allow authorized pages and restrict the others
     cat > "/etc/lighttpd/conf-enabled/50-raspap-router.conf" <<- EOF
@@ -104,19 +114,16 @@ server.modules += (
     "mod_proxy"
 )
 
-# captive portal Android / Apple / Windows
-\$HTTP["host"] =~ "^($captive_portal_urls)$" {
-
-    # check captive portal url
-    \$HTTP["url"] =~ "^/(generate_204|redirect|hotspot-detect\.html)$" {
-        # captive portal redirection
+# captive portal Android / Apple / Windows - redirect all URLs from these hosts
+\$HTTP["host"] =~ "^($captive_portal_hosts)$" {
+    # redirect only when on a non-NSI-PRESENCE path, to avoid redirect loops
+    \$HTTP["url"] !~ "^/nsi-presence-words/" {
         url.redirect = ( ".*" => "/nsi-presence-words/index.html" )
     }
 }
 
 # redirect all to RaspAP
-\$HTTP["host"] !~ "^($captive_portal_urls)$" {
-
+\$HTTP["host"] !~ "^($captive_portal_hosts)$" {
     # ckeck if the url starts with (and skip redirection)
     \$HTTP["url"] =~ "^/(?!(dist|app|ajax|config|rootCA\.pem|nsi-presence-words)).*" {
         # raspap redirection
@@ -126,7 +133,7 @@ server.modules += (
 }
 
 # proxy /nsi-presence-words to Flask server on port $1
-\$HTTP["url"] =~ "^/(favicon\.ico|envoyer|get_messages|moderer)$" {
+\$HTTP["url"] =~ "^/(favicon\.ico|envoyer|get_messages|moderer|vider_rejetes)$" {
     # rewrite url
     url.rewrite-once = (
         "^/(/.*|)$" => "\1"
@@ -166,6 +173,10 @@ if [ $(whoami) != "root" ]; then
     echo "[!] This program need root !"
     exit 1
 fi
+
+
+# load captive portal config
+load_captive_portal_config
 
 
 # install
