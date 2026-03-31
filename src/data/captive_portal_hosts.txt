@@ -8,6 +8,12 @@ play.googleapis.com
 connect.rom.miui.com
 android.clients.google.com
 
+# Android 15 specific
+connectivitycheck.android.google.cn
+www.google.cn
+clients.l.google.com
+connectivitycheck.gstatic.cn
+
 # Samsung specific
 connectivitycheck.samsung.com.cn
 connectivitycheck.samsung.com

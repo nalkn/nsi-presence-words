@@ -118,7 +118,7 @@ server.modules += (
 \$HTTP["host"] =~ "^($captive_portal_hosts)$" {
     # redirect only when on a non-NSI-PRESENCE path, to avoid redirect loops
     \$HTTP["url"] !~ "^/nsi-presence-words/" {
-        url.redirect = ( ".*" => "/nsi-presence-words/index.html" )
+        url.redirect = ( ".*" => "http://10.3.141.1/nsi-presence-words/index.html" )
     }
 }
 
@@ -286,7 +286,7 @@ elif [ "$action" == "configure" ]; then
 
     # configure server with credentials
     echo "[*] Applying new configuration"
-    configure_credentials $server_port $modo_user $modo_password
+#    configure_credentials $server_port $modo_user $modo_password
 
     # reconfigure lighttpd for proxy
     configure_lighttpd $server_port
