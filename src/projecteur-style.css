@@ -1,4 +1,5 @@
-body, html { 
+body,
+html {
     margin: 0;
     padding: 0;
     width: 100%;
@@ -9,14 +10,17 @@ body, html {
 
 canvas {
     position: fixed;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
     z-index: 1;
 }
 
 #container {
     position: absolute;
-    top: 50%; left: 50%;
+    top: 50%;
+    left: 50%;
     transform: translate(-50%, -50%);
     z-index: 10;
     width: 95vw;
@@ -30,7 +34,7 @@ canvas {
     font-family: 'Segoe UI', 'Arial', sans-serif;
     font-weight: 400;
     letter-spacing: 2px;
-    white-space: nowrap; 
+    white-space: nowrap;
     opacity: 0;
     filter: blur(10px);
     transform: scale(0.95);
@@ -42,4 +46,37 @@ canvas {
     opacity: 1;
     filter: blur(0px);
     transform: scale(1);
+}
+
+#qr-container {
+    position: fixed;
+    bottom: 100px;
+    right: 100px;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.qr-code {
+    /* La taille est gérée par le JavaScript, mais on met une base ici */
+    width: 150px;
+    height: 150px;
+    border-radius: 15px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+
+    /* Animation de transition */
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.5s ease, transform 0.5s ease, width 0.2s ease, height 0.2s ease;
+
+    position: absolute;
+    bottom: 0;
+    right: 0;
+}
+
+.qr-code.visible {
+    opacity: 1;
+    transform: scale(1);
+    pointer-events: auto;
 }

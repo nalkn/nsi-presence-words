@@ -13,8 +13,13 @@
     <div id="affichage" class="mot-affiche">Initialisation...</div>
 </div>
 
+<div id="qr-container">
+    <img src="qr1.png" alt="QR Code 1" id="qr1" class="qr-code">
+    <img src="qr2.png" alt="QR Code 2" id="qr2" class="qr-code">
+</div>
+
 <script>
-    // Fond étoilé lent
+    // --- 1. FOND ÉTOILÉ ---
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
     let particles = [];
@@ -57,35 +62,14 @@
     }
     animate(0);
 
-    // Logique d'affichage
+    // --- 2. LOGIQUE DU PROJECTEUR (MOTS) ---
     class ProjecteurScene {
         constructor() {
             this.playlist = [{id: 0, texte: "PRÉSENCE"}];
             this.index = 0;
-            this.validesActuels = new Set([0]); // IDs validés actuellement
+            this.idsConnus = new Set([0]);
             this.el = document.getElementById('affichage');
             this.isAnimating = false;
-        }
-
-        // Mélanger les mots de manière aléatoire (sauf le message courant)
-        melangerMots() {
-            if (this.playlist.length <= 2) return;
-            
-            // Extraire le message courant
-            const msgCourant = this.playlist[this.index];
-            
-            // Créer une playlist sans le message courant
-            const autreMsgs = this.playlist.filter((_, i) => i !== this.index);
-            
-            // Fisher-Yates shuffle
-            for (let i = autreMsgs.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [autreMsgs[i], autreMsgs[j]] = [autreMsgs[j], autreMsgs[i]];
-            }
-            
-            // Reconstruire la playlist avec le message courant au début
-            this.playlist = [msgCourant, ...autreMsgs];
-            this.index = 0;
         }
 
         async fetchMessages() {
@@ -93,52 +77,28 @@
                 const res = await fetch('/get_messages');
                 const data = await res.json();
                 
-                const nouveauxValides = new Set();
+                const idsServeur = new Set(data.valides.map(msg => msg.id));
+                // Supprime ce qui n'est plus validé
+                this.playlist = this.playlist.filter(msg => msg.id === 0 || idsServeur.has(msg.id));
+                this.idsConnus = new Set(this.playlist.map(msg => msg.id));
+
+                // Ajoute les nouveaux
                 data.valides.forEach(msg => {
-                    nouveauxValides.add(msg.id);
-                });
-                
-                // Supprimer les messages qui ne sont plus valides
-                this.playlist = this.playlist.filter(msg => {
-                    if (msg.id === 0) return true; // Garder le message "PRÉSENCE"
-                    return nouveauxValides.has(msg.id);
-                });
-                
-                // Ajuster l'index si nécessaire
-                if (this.index >= this.playlist.length) {
-                    this.index = 0;
-                }
-                
-                // Ajouter les nouveaux messages validés
-                let nouveauxMessages = false;
-                data.valides.forEach(msg => {
-                    if (!this.validesActuels.has(msg.id)) {
-                        this.playlist.push(msg);
-                        this.validesActuels.add(msg.id);
-                        nouveauxMessages = true;
-                        console.log("Nouveau message :", msg.texte);
+                    if (!this.idsConnus.has(msg.id)) {
+                        this.playlist.splice(this.index + 1, 0, msg);
+                        this.idsConnus.add(msg.id);
                     }
                 });
-                
-                // Supprimer les IDs qui ne sont plus valides
-                this.validesActuels = new Set([0, ...nouveauxValides]);
-                
-                // Mélanger la playlist si de nouveaux messages ont été ajoutés
-                if (nouveauxMessages) {
-                    this.melangerMots();
-                }
-            } catch (e) {
-                console.error("Erreur lors de la récupération des messages:", e);
-            }
+
+                if (this.index >= this.playlist.length) this.index = 0;
+            } catch (e) { console.error("Erreur synchro :", e); }
         }
 
         ajusterTailleOptimale(texte) {
             const containerWidth = window.innerWidth * 0.9;
             const containerHeight = window.innerHeight * 0.7;
-            
             let fontSize = 10;
             this.el.style.fontSize = fontSize + "px";
-            
             while (this.el.offsetWidth < containerWidth && this.el.offsetHeight < containerHeight && fontSize < 300) {
                 fontSize += 2;
                 this.el.style.fontSize = fontSize + "px";
@@ -149,22 +109,13 @@
         async cycle() {
             if (this.playlist.length === 0 || this.isAnimating) return;
             this.isAnimating = true;
-
-            // Sortie
             this.el.classList.remove('visible');
             await new Promise(r => setTimeout(r, 1300));
-
-            // Passage au suivant
             this.index = (this.index + 1) % this.playlist.length;
             const msg = this.playlist[this.index];
-            
             this.el.innerText = msg.texte;
             this.ajusterTailleOptimale(msg.texte);
-
-            // Entrée
             this.el.classList.add('visible');
-            
-            // Affichage 4 secondes
             setTimeout(() => { this.isAnimating = false; }, 4000);
         }
     }
@@ -172,7 +123,45 @@
     const maScene = new ProjecteurScene();
     setInterval(() => maScene.fetchMessages(), 3000);
     setInterval(() => maScene.cycle(), 500);
-</script>
 
+    // --- 3. LOGIQUE QR CODES (CLIC + FLÈCHES) ---
+    const qr1 = document.getElementById('qr1');
+    const qr2 = document.getElementById('qr2');
+    let qrState = 0; // 0: Off, 1: QR1, 2: QR2
+    let qrSize = 150; 
+
+    function appliquerTaille() {
+        [qr1, qr2].forEach(img => {
+            img.style.width = qrSize + "px";
+            img.style.height = qrSize + "px";
+        });
+    }
+
+    // Changement de QR au clic
+    document.addEventListener('click', () => {
+        qrState = (qrState + 1) % 3;
+        qr1.classList.remove('visible');
+        qr2.classList.remove('visible');
+        if (qrState === 1) qr1.classList.add('visible');
+        else if (qrState === 2) qr2.classList.add('visible');
+    });
+
+    // Ajustement taille avec Flèches
+    window.addEventListener('keydown', (e) => {
+        if (e.key === "ArrowUp") {
+            qrSize += 10;
+            appliquerTaille();
+        } else if (e.key === "ArrowDown") {
+            if (qrSize > 50) {
+                qrSize -= 10;
+                appliquerTaille();
+            }
+        }
+    });
+
+    // Initialisation taille
+    appliquerTaille();
+
+</script>
 </body>
 </html>
