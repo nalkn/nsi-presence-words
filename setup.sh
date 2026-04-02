@@ -286,7 +286,7 @@ elif [ "$action" == "configure" ]; then
 
     # configure server with credentials
     echo "[*] Applying new configuration"
-#    configure_credentials $server_port $modo_user $modo_password
+    configure_credentials $server_port $modo_user $modo_password
 
     # reconfigure lighttpd for proxy
     configure_lighttpd $server_port
